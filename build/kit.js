@@ -5,11 +5,15 @@
  * kit.py とのちがい（Gemini が行の番号を数えまちがえないように足したもの）
  *   ・put / table / box の line を省くと、そのページで最後に使った行の次の行から置く（gap で空ける行の数）
  *   ・字は "見出し:①予想" "答え:…" のように、頭に種類を書く（kit.py の H() A() のかわり）
+ *   ・横書きのノートは、1行のマスの数（16・14・12・10・8）を選べる。マス目の大きいノートを使う子の見本にする
  */
 (function (root) {
   "use strict";
   var INK = "#1b1b1b", RED = "#d12a1e", BLUE = "#2b5bb8", GRAY = "#8a8f96";
   var CELL = 10, TOP = 22, PAGE_X = { R: 193, L: 11 };
+  // 横書きのノートの1行のマスの数。ページの幅160mmを等分し、高さ230mmに入るだけ行をとる。16が5mm方眼（1字10mm）
+  var MASU = [16, 14, 12, 10, 8];
+  function masuSize(n) { var cell = 160 / n; return { ncell: n, cell: cell, nlines: Math.floor(230 / cell + 1e-9) }; }
   var COLORS = { red: RED, blue: BLUE, gray: GRAY, black: INK, "赤": RED, "青": BLUE, "灰": GRAY, "黒": INK };
 
   function color(c, d) { return !c ? d : COLORS[c] || (/^#[0-9a-f]{6}$/i.test(c) ? c : d); }
@@ -54,39 +58,46 @@
   }
 
   // ---------- 見開き ----------
-  function Spread(vertical, grade, names) {
+  function Spread(vertical, grade, names, masu) {
+    var m = masuSize(vertical ? 16 : masu || 16);
     this.v = vertical;
-    this.nlines = vertical ? 16 : 23;
-    this.ncell = vertical ? 23 : 16;
+    this.cell = vertical ? CELL : m.cell;
+    this.nlines = vertical ? 16 : m.nlines;
+    this.ncell = vertical ? 23 : m.ncell;
     this.grid = {};
     for (var p of ["R", "L"]) this.grid[p] = Array.from({ length: this.nlines }, function () { return new Array(this.ncell).fill(null); }, this);
     this.marks = []; this.extra = []; this.errs = [];
     this.grade = grade; this.names = new Set(Array.from(names || ""));
     this.next = { R: 1, L: 1 };   // line を省いたときに置く行
+    this.over = {};               // ページからあふれたとき、何行めまで使おうとしたか（あとでまとめて知らせる）
     this.where = "";              // 点検の知らせに付ける「何番めの指示か」
   }
   var S = Spread.prototype;
   S.err = function (m) { this.errs.push((this.where ? this.where + "：" : "") + m); };
   S.used = function (page, line) { if (line + 1 > this.next[page]) this.next[page] = line + 1; };
   S.xy = function (page, line, pos) {
-    return this.v ? [PAGE_X[page] + (16 - line) * CELL, TOP + (pos - 1) * CELL] : [PAGE_X[page] + (pos - 1) * CELL, TOP + (line - 1) * CELL];
+    var c = this.cell;
+    return this.v ? [PAGE_X[page] + (16 - line) * c, TOP + (pos - 1) * c] : [PAGE_X[page] + (pos - 1) * c, TOP + (line - 1) * c];
   };
   S.rect = function (page, l1, l2, p1, p2) {
     var xs = [], ys = [];
-    for (var l of [l1, l2]) for (var p of [p1, p2]) { var q = this.xy(page, l, p); xs.push(q[0], q[0] + CELL); ys.push(q[1], q[1] + CELL); }
+    for (var l of [l1, l2]) for (var p of [p1, p2]) { var q = this.xy(page, l, p); xs.push(q[0], q[0] + this.cell); ys.push(q[1], q[1] + this.cell); }
     return [Math.min.apply(0, xs), Math.min.apply(0, ys), Math.max.apply(0, xs), Math.max.apply(0, ys)];
   };
   S.put = function (page, line, pos, texts) {
-    var start = pos;
+    var start = pos, clash = false;
     for (var t of texts) {
       for (var u of units(t.s, this.v)) {
         if (pos > this.ncell) {
           line += 1; pos = start;
           if ("、。，．」』）〕！？ー".indexOf(u[0]) >= 0) this.err(page + line + "行の頭に「" + u + "」が来た（" + t.s + "）。文を短くするか、折る所を変える");
         }
-        if (line > this.nlines) { this.err(page + "ページからあふれた：" + t.s); return [line, pos]; }
+        if (line > this.nlines) { this.overflow(page, line, t.s); pos += 1; continue; }
         var cur = this.grid[page][line - 1][pos - 1];
-        if (cur && cur[0] !== "　" && u !== "　") this.err(page + line + "行" + pos + "マスに重ねて書いた：「" + cur[0] + "」の上に「" + u + "」（" + t.s + "）");
+        if (cur && cur[0] !== "　" && u !== "　" && !clash) {
+          clash = true;   // 1つの指示で重なったら、知らせは1回にする
+          this.err(page + line + "行" + pos + "マスには、前の指示で書いた「" + cur[0] + "」がある（" + t.s + "）。line を省くか、line の番号を数えなおす");
+        }
         this.grid[page][line - 1][pos - 1] = [u, t];
         this.checkKanji(u, t);
         pos += 1;
@@ -94,6 +105,21 @@
     }
     this.used(page, line);
     return [line, pos];
+  };
+  /** ページの下からあふれた。字は置かずに、何行めまで使おうとしたかだけを数える。 */
+  S.overflow = function (page, line, s) {
+    var o = this.over[page] || (this.over[page] = { line: 0, first: s, where: this.where });
+    if (line > o.line) o.line = line;
+  };
+  S.overflowErrs = function () {
+    for (var page of ["L", "R"]) {
+      var o = this.over[page];
+      if (!o) continue;
+      var n = o.line - this.nlines, side = page === "L" ? "左" : "右";
+      this.errs.push(o.where + "から：" + side + "ページは" + this.nlines + "行までですが、" + o.line + "行めまで使おうとしています（あふれたのは「" + o.first + "」から）。" +
+        (page === "L" ? "「" + o.first + "」から後を右ページ（\"page\":\"R\"）の1行めへ移すか、" : "") +
+        n + "行へらしてください（gap をへらす、短い見出しと文を1行にまとめる、字をへらす）");
+    }
   };
   S.checkKanji = function (u, t) {
     for (var ch of Array.from(u)) {
@@ -106,6 +132,7 @@
     this.marks.push([{ type: "line", x1: x1, y1: y1, x2: x2, y2: y2, color: col || INK, width: w || 0.6, dash: dash || "solid" }, only || null]);
   };
   S.box = function (page, l1, l2, p1, p2, col, w, only) {
+    if (Math.max(l1, l2) > this.nlines) this.overflow(page, Math.max(l1, l2), "囲み");
     var r = this.rect(page, l1, l2, p1, p2), self = this;
     [[r[0], r[1], r[2], r[1]], [r[0], r[3], r[2], r[3]], [r[0], r[1], r[0], r[3]], [r[2], r[1], r[2], r[3]]].forEach(function (a) {
       self.line(a[0], a[1], a[2], a[3], col, w, only);
@@ -162,17 +189,21 @@
     this.used(page, last);
   };
   S.poly = function (page, pts, col, w, only) {
+    var c = this.cell;
     for (var i = 0; i < pts.length; i++) {
       var a = pts[i], b = pts[(i + 1) % pts.length];
-      this.line(PAGE_X[page] + (a[0] - 1) * CELL, TOP + (a[1] - 1) * CELL, PAGE_X[page] + (b[0] - 1) * CELL, TOP + (b[1] - 1) * CELL, col || INK, w || 0.9, only);
+      this.line(PAGE_X[page] + (a[0] - 1) * c, TOP + (a[1] - 1) * c, PAGE_X[page] + (b[0] - 1) * c, TOP + (b[1] - 1) * c, col || INK, w || 0.9, only);
     }
   };
   S.seg = function (page, a, b, c, d, col, w, dash) {
-    this.line(PAGE_X[page] + (a - 1) * CELL, TOP + (b - 1) * CELL, PAGE_X[page] + (c - 1) * CELL, TOP + (d - 1) * CELL, col || BLUE, w || 0.7, "A", dash);
+    var m = this.cell;
+    this.line(PAGE_X[page] + (a - 1) * m, TOP + (b - 1) * m, PAGE_X[page] + (c - 1) * m, TOP + (d - 1) * m, col || BLUE, w || 0.7, "A", dash);
   };
   S.hissan = function (page, line, pos, expr, answer) {
     var q = this.xy(page, line, pos);
-    var b = { type: "hissan", x: q[0], y: q[1], expr: expr, cell: CELL, grid: "none", ansColor: BLUE, zeroStep: "skip", spare: 0 };
+    var rows = hissanRows(expr);
+    if (line + rows - 1 > this.nlines) this.overflow(page, line + rows - 1, "筆算 " + expr + "（" + rows + "行使う）");
+    var b = { type: "hissan", x: q[0], y: q[1], expr: expr, cell: this.cell, grid: "none", ansColor: BLUE, zeroStep: "skip", spare: 0 };
     this.extra.push([Object.assign({}, b, { mode: "problem" }), "K"]);
     if (answer !== false) this.extra.push([Object.assign({}, b, { mode: "answer" }), "A"]);
   };
@@ -202,7 +233,7 @@
       text = text.concat(s); sty = sty.concat(styles[i]);
       if (i < lines.length - 1) { text.push("\n"); sty.push(null); }
     });
-    return { type: "masu", x: PAGE_X[page], y: TOP, dir: this.v ? "v" : "h", cell: CELL, perLine: this.v ? 23 : 16, lines: this.v ? 16 : 23,
+    return { type: "masu", x: PAGE_X[page], y: TOP, dir: this.v ? "v" : "h", cell: this.cell, perLine: this.ncell, lines: this.nlines,
       gap: 0, leader: true, frame: true, lineStyle: "solid", gridColor: "green", text: text.join(""), styles: sty,
       fontScale: 0.68, font: "kyokasho", color: INK, autoGrow: false, locked: true,
       rules: { kutenKagi: false, gyotou: "off", kaiwaSage: false, danrakuSage: false, hankaku2: true } };
@@ -244,7 +275,7 @@
       if (l2 > l) n.err("めあての行「" + s + "」が1行に入らず折り返した。めあてを行で分ける");
       l = l2 + 1;
     });
-    n.box("L", 3, l - 1, 1, 16, box, 0.8);
+    n.box("L", 3, l - 1, 1, n.ncell, box, 0.8);
     return l - 1;
   }
 
@@ -255,6 +286,7 @@
   function runNote(n, ops) {
     ops.forEach(function (op, i) {
       n.where = "ノート" + (i + 1) + "番め（" + (op && op.do) + "）";
+      if (op && op.do === "gap") { n.err("do に gap は使えない。行を空けるときは、次の指示に \"gap\": 1 のように書く"); return; }
       if (!op || !NEED[op.do]) { n.err("do は head / put / table / box / circle / poly / seg / hissan のどれか"); return; }
       var miss = NEED[op.do].filter(function (k) { return op[k] == null; });
       if (miss.length) { n.err(miss.join("・") + " がない"); return; }
@@ -266,8 +298,17 @@
         case "put": n.put(pg, at(), op.cell || 1, pieces(op.text)); break;
         case "table": n.table(pg, at(), op.cell || 1, op.widths, op.rows, op.heights, op.head, color(op.color, INK)); break;
         case "box": {
-          var l1 = Array.isArray(op.line) ? op.line[0] : at(), l2 = Array.isArray(op.line) ? op.line[1] : l1 + (op.lines || 1) - 1;
+          // text を書くと、囲みの中に1行ずつ置く（行の番号を数えなくてよい）。lines を省くと、text の行の数で囲む
+          var tx = op.text == null ? [] : Array.isArray(op.text) ? op.text : [op.text];
+          var tc = op.cell[1] - op.cell[0] >= 2 ? op.cell[0] + 1 : op.cell[0], room = op.cell[1] - tc + 1;
+          var l1 = Array.isArray(op.line) ? op.line[0] : at();
+          var l2 = Array.isArray(op.line) ? op.line[1] : l1 + (op.lines || tx.length || 1) - 1;
           n.box(pg, l1, l2, op.cell[0], op.cell[1], color(op.color, GRAY), op.width || (color(op.color, GRAY) === GRAY ? 0.4 : 0.8));
+          tx.forEach(function (s, k) {
+            var ps = pieces(s), w = ps.reduce(function (a, q) { return a + width(q.s, n.v); }, 0);
+            if (w > room) n.err("囲みの中の「" + ps.map(function (q) { return q.s; }).join("") + "」が、囲みの幅（" + room + "マス）をこえる。text の1つを1行に入る長さに分ける");
+            if (l1 + k <= l2) n.put(pg, l1 + k, tc, ps); else n.err("囲みの text が lines より多い");
+          });
           break;
         }
         case "circle": n.circle(pg, op.line, op.cell[0], op.cell[1]); break;
@@ -275,10 +316,11 @@
         case "seg": n.seg(pg, op.from[0], op.from[1], op.to[0], op.to[1], color(op.color, BLUE), op.width, op.dash); break;
         case "hissan": n.hissan(pg, at(), op.cell || 1, op.expr, op.answer); n.used(pg, at() + hissanRows(op.expr) - 1); break;
       }
-      var lim = n.v ? 23 : 16;
-      [].concat(op.cell || []).forEach(function (c) { if (c < 1 || c > lim) n.err("cell は 1〜" + lim); });
+      [].concat(op.cell || []).forEach(function (c) { if (c < 1 || c > n.ncell) n.err("cell は 1〜" + n.ncell); });
+      if (op.do === "table" && op.widths.reduce(function (a, b) { return a + b; }, 0) + (op.cell || 1) - 1 > n.ncell) n.err("表の widths の合計が、1行のマス（" + n.ncell + "）をこえる");
     });
     n.where = "";
+    n.overflowErrs();
   }
 
   /** 筆算が縦に何行使うか。わり算は商の行とわられる数の行に、0でない商の数字ごとに2行（ひく数と、その差）。 */
@@ -309,20 +351,24 @@
     return { version: 1, title: title, paper: paper || "B4", orient: orient || "landscape", margin: 8, snap: 0.5, meta: meta || {}, pages: [{ blocks: blocks }] };
   }
 
-  /** 紙面ファイル → { note, example, board(型), errs } */
-  function build(F) {
+  /** 紙面ファイル → { note, example, board(型), errs, masu, nlines }。opt.masu で1行のマスの数を決める（省くと unit.masu、なければ16）。 */
+  function build(F, opt) {
     var U = F.unit || {}, v = U.dir === "v", grade = +U.grade || 4, errs = [];
+    var masu = +(opt && opt.masu) || +U.masu || 16;
+    if (MASU.indexOf(masu) < 0) { errs.push("masu（1行のマスの数）は " + MASU.join("・") + " のどれか"); masu = 16; }
+    if (v && masu !== 16) { errs.push("縦書きのノートは、マスの数を変えられない（16行×23マスで組む）"); masu = 16; }
     if (!U.title) errs.push("unit.title（単元名）がない");
     if (!Array.isArray(F.note)) errs.push("note（ノートの指示の並び）がない");
     var name = (U.title || "") + "　第" + (F.ji || "?") + "時";
-    var n = new Spread(v, grade, U.names || "");
+    var n = new Spread(v, grade, U.names || "", masu);
+    var tag = masu === 16 ? "" : "（" + masu + "マス）";
     if (Array.isArray(F.note)) runNote(n, F.note);
     errs = errs.concat(n.errs.map(function (e) { return "ノート：" + e; }));
     var meta = { subject: U.subject || "", grade: grade + "年", name: name };
     var nameText = U.name_text || grade + "年　　組　名前（　　　　　　　　　）";
-    var out = { name: name, errs: errs,
-      note: doc(name + "　ノート", n.blocks(false, nameText), "B4", "landscape", meta),
-      example: doc(name + "　ノート記入例", n.blocks(true, nameText), "B4", "landscape", meta) };
+    var out = { name: name, errs: errs, masu: masu, nlines: n.nlines, cell: n.cell,
+      note: doc(name + "　ノート" + tag, n.blocks(false, nameText), "B4", "landscape", meta),
+      example: doc(name + "　ノート記入例" + tag, n.blocks(true, nameText), "B4", "landscape", meta) };
     if (F.board) {
       var chk = new Spread(v, grade, U.names || "");
       (F.board.items || []).forEach(function (it) {
@@ -344,5 +390,5 @@
     return JSON.parse(s.slice(a, b + 1));
   }
 
-  root.UnitKit = { build: build, parse: parse, setKanji: setKanji, units: units };
+  root.UnitKit = { build: build, parse: parse, setKanji: setKanji, units: units, MASU: MASU, masuSize: masuSize };
 })(typeof window !== "undefined" ? window : globalThis);

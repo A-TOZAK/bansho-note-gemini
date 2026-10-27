@@ -33,6 +33,8 @@
   #view { flex:1; display:flex; flex-direction:column; min-width:0; }
   #frame { flex:1; border:0; width:100%; background:#fff; }
   .label { font-size:12px; color:var(--sub); margin:0 0 4px; }
+  .masu { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; }
+  .masu select { font:inherit; font-size:13.5px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:#fff; }
 </style>
 </head>
 <body>
@@ -40,6 +42,17 @@
   <h1>組み立てページ</h1>
   <p class="note"><a href="../">← プロンプトのページへ</a></p>
   <p class="note">Geminiが書いた1時間分の紙面ファイル（JSON）を貼りつけて「組み立てる」を押します。前後の説明文や ```json のかこみがついていても読めます。</p>
+  <label class="masu">ノートのマス（1行のマスの数）
+    <select id="masu">
+      <option value="16" selected>16マス（5mm方眼のノート）</option>
+      <option value="14">14マス</option>
+      <option value="12">12マス</option>
+      <option value="10">10マス</option>
+      <option value="8">8マス</option>
+    </select>
+  </label>
+  <p class="note" id="masuinfo"></p>
+  <p class="note">Geminiに<a href="../#chishiki">知識のファイル</a>を入れておくと、直すやりとりが減ります。</p>
   <textarea id="src" spellcheck="false" placeholder='{"unit": {...}, "ji": 2, "note": [...], "board": {...}}'></textarea>
   <div class="row">
     <button id="go" class="primary" type="button">組み立てる</button>
@@ -92,6 +105,15 @@
     });
     return ready;
   }
+
+  // ノートのマス。Geminiの設計図に unit.masu があれば、それに合わせる。先生が選びなおしたら、そちらを使う
+  var sel = $("#masu"), picked = false;
+  function info() {
+    var m = UnitKit.masuSize(+sel.value);
+    $("#masuinfo").textContent = "1マスは約" + Math.round(m.cell) + "mm、1ページは" + m.nlines + "行です。B4よこに刷ると、B5ノートの見開きと同じ大きさになります。";
+  }
+  sel.onchange = function () { picked = true; info(); if (made) run(); };
+  info();
 
   fetch("kanji_grade.json").then(function (r) { return r.json(); }).then(function (j) { UnitKit.setKanji(j.grades); });
 
@@ -155,8 +177,13 @@
     try { F = UnitKit.parse($("#src").value); }
     catch (e) { out.innerHTML = '<span class="bad">JSONとして読めませんでした。</span><br>' + esc(e.message) + "<br>Geminiに「JSONだけを、```json のかこみ1つで出しなおして」と頼んでください。"; return; }
     var A = await app();
-    made = UnitKit.build(F);
+    var drawn = +(F.unit && F.unit.masu) || 16;   // Geminiが組んだマスの数
+    if (!picked && UnitKit.MASU.indexOf(drawn) >= 0 && +sel.value !== drawn) { sel.value = drawn; info(); }
+    made = UnitKit.build(F, { masu: +sel.value });
     var errs = made.errs.slice();
+    // names は地名や人名のための欄。習っていない字の言いかえをせずに、ここへ入れて点検を通すことがあるので、先生に見せる
+    var nm = Array.from(new Set(Array.from(String((F.unit && F.unit.names) || "")).filter(function (c) { return c >= "一" && c <= "鿿"; })));
+    var nameNote = nm.length ? '<p class="note">固有名詞として点検を通した字：' + esc(nm.join("・")) + "。地名や人名でない字が入っていたら、Geminiに外してもらってください。</p>" : "";
     if (made.board) {
       try { made.boardDoc = A.buildKata(made.board, true).doc; made.boardDoc.title = made.board.name; }
       catch (e) { errs.push("板書：組み立てられなかった（" + e.message + "）"); }
@@ -171,10 +198,24 @@
     errs = Array.from(new Set(errs));
     $("#tabs").hidden = false;
     pick(made.boardDoc ? "board" : "example");
-    if (!errs.length) { out.innerHTML = '<span class="ok">✅ 点検を通りました。</span>（はみ出し・重なり・入りきらない字・学年をこえる漢字）'; return; }
+    var askNames = "unit の names に入れた字（" + nm.join("・") + "）が地名や人名でなければ、names から外し、習った字かひらがなに直してください。";
+    if (!errs.length) {
+      out.innerHTML = '<span class="ok">✅ 点検を通りました。</span>（はみ出し・重なり・入りきらない字・学年をこえる漢字）' + nameNote +
+        (nm.length ? '<button type="button" id="copynames">外してほしいことをコピー（Geminiに貼る）</button>' : "");
+      if (nm.length) $("#copynames").onclick = function () {
+        navigator.clipboard.writeText(askNames + "\nJSONを全部出しなおしてください。").then(function () { $("#copynames").textContent = "コピーしました"; });
+      };
+      return;
+    }
     var fix = "次の点を直して、紙面ファイルのJSONを全部出しなおしてください。\n" + errs.map(function (e) { return "・" + e; }).join("\n");
-    out.innerHTML = '<span class="bad">⚠ 点検で ' + errs.length + " 件見つかりました。</span><ul>" + errs.map(function (e) { return "<li>" + esc(e) + "</li>"; }).join("") +
-      '</ul><button type="button" id="copyfix">直してほしいことをコピー（Geminiに貼る）</button>';
+    if (nm.length) fix += "\n・" + askNames;
+    if (made.masu !== drawn) {
+      var ask = "ノートを、1行" + made.masu + "マス、1ページ" + made.nlines + "行に組み直してください。unit に \"masu\": " + made.masu + " を書き、cell は1〜" + made.masu + "、line は1〜" + made.nlines + "で置きます。表の widths の合計も" + made.masu + "までにします。板書は変えません。";
+      fix = ask + "\n\n" + fix;
+      var lead = "<p>この設計図は" + drawn + "マスで組まれています。" + made.masu + "マスのノートにするには、下のボタンでコピーしてGeminiに貼り、組み直してもらいます。</p>";
+    }
+    out.innerHTML = (lead || "") + '<span class="bad">⚠ 点検で ' + errs.length + " 件見つかりました。</span><ul>" + errs.map(function (e) { return "<li>" + esc(e) + "</li>"; }).join("") +
+      "</ul>" + nameNote + '<button type="button" id="copyfix">直してほしいことをコピー（Geminiに貼る）</button>';
     $("#copyfix").onclick = function () {
       navigator.clipboard.writeText(fix).then(function () { $("#copyfix").textContent = "コピーしました"; });
     };
@@ -198,6 +239,7 @@
   }
 
   $("#go").onclick = run;
+  $("#src").addEventListener("input", function () { picked = false; });
   $("#sample").onclick = function () {
     fetch("sample.json").then(function (r) { return r.text(); }).then(function (t) { $("#src").value = t; });
   };

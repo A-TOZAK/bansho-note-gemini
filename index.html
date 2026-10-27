@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Geminiで板書計画とノート｜School Stock</title>
-<meta name="description" content="授業の計画をGeminiに渡すと、板書計画・5mm方眼の配るノート・ノートの記入例の3枚ができます。プロンプトをコピーして、Geminiに貼るだけです。">
+<meta name="description" content="授業の計画をGeminiに渡すと、板書計画・配るノート・ノートの記入例の3枚ができます。5mm方眼のほか、マス目の大きいノートにも合わせられます。">
 <link rel="canonical" href="https://a-tozak.github.io/bansho-note-gemini/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="School Stock">
@@ -63,6 +63,16 @@
   pre { margin:0; background:var(--wash); border:1px solid var(--line); padding:16px; font:12.5px/1.65 var(--font-mono); white-space:pre-wrap; word-break:break-all;
         max-height:420px; overflow:auto; }
   .notes { margin:16px 0 0; padding-left:1.2em; font-size:14.5px; }
+  .files { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:0 0 20px; padding:0; list-style:none; }
+  .files li { border:1px solid var(--line); padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
+  .files b { color:var(--black); }
+  .files span { font-size:14px; color:var(--sub); flex:1; }
+  .files .btn { min-height:40px; font-size:14px; }
+  .how { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .how h3 { font-size:16px; margin:0 0 8px; color:var(--black); }
+  .how ol { margin:0; padding-left:1.3em; font-size:14.5px; }
+  .how li { margin-bottom:4px; }
+  .lead { margin:0 0 18px; max-width:44em; }
   .notes li { margin-bottom:6px; }
 
   footer { border-top:1px solid var(--line); padding:28px 0 40px; font-size:13px; color:var(--sub); }
@@ -73,6 +83,7 @@
     .steps { grid-template-columns:1fr; }
     .steps li, .steps li + li { padding:16px 0; border-left:0; border-bottom:1px solid var(--line); }
     .shots { grid-template-columns:1fr; }
+    .files, .how { grid-template-columns:1fr; }
     .btn { flex:1 1 100%; }
   }
 </style>
@@ -83,7 +94,7 @@
 <main>
   <div class="wrap hero">
     <h1 class="ja-phrase">Geminiで<br>板書計画とノート</h1>
-    <p class="ja-phrase">授業の計画をGeminiに渡すと、板書計画、5mm方眼の配るノート、ノートの記入例の3枚ができます。ノートは視写をしない形で、題名・めあて・見出しだけが刷ってあります。</p>
+    <p class="ja-phrase">授業の計画をGeminiに渡すと、板書計画、配るノート、ノートの記入例の3枚ができます。ノートは視写をしない形で、題名・めあて・見出しだけが刷ってあります。ふだんは5mm方眼のノートで、マス目の大きいノート（1行12マスなど）にも合わせられます。</p>
     <div class="btns">
       <button class="btn primary" type="button" id="copy">プロンプトをコピーする</button>
       <a class="btn" href="https://gemini.google.com/app" target="_blank" rel="noopener">Geminiをひらく</a>
@@ -96,10 +107,42 @@
     <div class="wrap">
       <h2>使い方</h2>
       <ol class="steps">
-        <li><span class="n">1</span><b>プロンプトをコピーする</b><span>いちばん下の「授業の計画」の欄を、本時の計画に書きかえます。指導案の本時の部分をそのまま貼ってかまいません。</span></li>
+        <li><span class="n">1</span><b>プロンプトをコピーする</b><span>いちばん下の「授業の計画」の欄を、本時の計画に書きかえます。指導案の本時の部分をそのまま貼ってかまいません。マス目の大きいノートに合わせるときは、「ノートのマス」に1行のマスの数を書きます。</span></li>
         <li><span class="n">2</span><b>Geminiに貼る</b><span>Geminiが、紙の設計図（JSON）を1つ返します。右上のコピーのボタンでコピーします。</span></li>
         <li><span class="n">3</span><b>組み立てページに貼る</b><span>3枚の紙ができ、点検もします。直すところが出たら、ボタンでコピーしてGeminiに貼りなおします。</span></li>
       </ol>
+    </div>
+  </section>
+
+  <section id="chishiki">
+    <div class="wrap">
+      <h2 class="ja-phrase">Geminiに知識のファイルを入れる</h2>
+      <p class="lead ja-phrase">プロンプトのほかに、約束を書いたファイルを3つ、Geminiに読ませると、まちがいが減ります。4年算数の1時間を12マスのノートで1回ずつ試したところ、点検を通るまでのやりとりが6回から3回に減りました。学年をこえる漢字のまちがいも、1回めから出ませんでした。</p>
+      <ul class="files">
+        <li><b>板書とノートの約束</b><span>行の数え方、マスの数ごとの行の数、試して分かったまちがいの例</span><a class="btn" href="knowledge/yakusoku.md" download="板書とノートの約束.md">ダウンロード</a></li>
+        <li><b>学年別漢字配当表</b><span>1年から6年までの1026字。組み立てページと同じ表です</span><a class="btn" href="knowledge/kanji.md" download="学年別漢字配当表.md">ダウンロード</a></li>
+        <li><b>見本の設計図</b><span>4年算数「1けたでわるわり算の筆算」第3時。点検を通ったもの</span><a class="btn" href="knowledge/mihon_sansu4_hissan.md" download="見本の設計図_4年算数_わり算の筆算.md">ダウンロード</a></li>
+      </ul>
+      <div class="how">
+        <div>
+          <h3>Gemを作るとき（おすすめ）</h3>
+          <ol>
+            <li><a href="https://gemini.google.com/gems/create" target="_blank" rel="noopener">新しいGemの画面</a>を開き、名前をつけます。</li>
+            <li>「カスタム指示」に、プロンプトの「授業の計画」より上を貼ります。</li>
+            <li>「知識」の＋から、3つのファイルを入れて保存します。</li>
+            <li>次からは、そのGemに授業の計画だけを貼ります。</li>
+          </ol>
+        </div>
+        <div>
+          <h3>Gemが使えないとき</h3>
+          <ol>
+            <li>Geminiの入力欄の＋から、3つのファイルを添付します。</li>
+            <li>同じ入力欄に、プロンプトを貼って送ります。</li>
+            <li>直すときは、同じ会話の中で続けます。</li>
+          </ol>
+        </div>
+      </div>
+      <p class="for">学校のアカウントでGemが使えるかどうかは、自治体や学校の設定で変わります。</p>
     </div>
   </section>
 
