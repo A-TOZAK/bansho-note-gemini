@@ -52,7 +52,7 @@
     </select>
   </label>
   <p class="note" id="masuinfo"></p>
-  <p class="note">Geminiに<a href="../#chishiki">知識のファイル</a>を入れておくと、直すやりとりが減ります。</p>
+  <p class="note">Geminiの<a href="../#skill">スキル「bansho-note」</a>を取りこんでおくと、直すやりとりが減ります。</p>
   <textarea id="src" spellcheck="false" placeholder='{"unit": {...}, "ji": 2, "note": [...], "board": {...}}'></textarea>
   <div class="row">
     <button id="go" class="primary" type="button">組み立てる</button>
@@ -108,7 +108,9 @@
 
   // ノートのマス。Geminiの設計図に unit.masu があれば、それに合わせる。先生が選びなおしたら、そちらを使う
   var sel = $("#masu"), picked = false;
-  function info() {
+  function info(v) {
+    sel.disabled = !!v;
+    if (v) { $("#masuinfo").textContent = "縦書き（国語）のノートは、1行23マス、1ページ16行で組みます。マスの数は変えられません。"; return; }
     var m = UnitKit.masuSize(+sel.value);
     $("#masuinfo").textContent = "1マスは約" + Math.round(m.cell) + "mm、1ページは" + m.nlines + "行です。B4よこに刷ると、B5ノートの見開きと同じ大きさになります。";
   }
@@ -135,6 +137,26 @@
     return "。上の" + label(up[1]) + "は r=" + toR(up[0].y + up[0].h).toFixed(1) + " まで使っている。下の" + label(low[1]) + "の r を " + need + " 以上にするか、上の部品を小さくする";
   }
 
+  /** 縦書きの黒板で、字が1列に入りきらず列がふえたとき、len と cols をいくつにすればよいかを言う（1字＝字の大きさ×0.36mm）。 */
+  function tateHint(b, o, bd) {
+    var size = b.size || 16, mm = size * 0.36;
+    var cols = String(b.html || "").split(/<br\s*\/?>/).map(function (s) { return Array.from(s.replace(/<[^>]+>/g, "")).length; });
+    var most = Math.max.apply(0, cols), top = bd ? Math.round(o.y - bd.y) : 2;
+    var need = Math.ceil(most * mm + 3), room = 76 - top;
+    var c = Math.round((cols.length * size * 0.3528 * 1.35 + 2) / 7.6 * 10) / 10;
+    var s = "：1列に入りきらず、列がふえた。いちばん長い列は" + most + "字（字の大きさ" + size + "で1字約" + mm.toFixed(1) + "mm）。";
+    if (need <= room) return s + "len を " + need + " にし、cols を " + c + " にする";
+    return s + "top が " + top + " なので len は " + room + " まで。1列を" + Math.floor((room - 3) / mm) + "字までに <br> で分けるか、" + (size > 13 ? "\"o\":{\"size\":13} にする" : "字をへらす");
+  }
+
+  /** 縦書きの黒板で重なったとき、左の部品の c をいくつ以上にすればよいかを言う（c＝右はしからの位置。右はしは黒板の左から273mm）。 */
+  function colHint(P, Q, pb, qb, bd) {
+    if (!bd || !pb.onBoard || !qb.onBoard || pb.dir !== "v" || qb.dir !== "v") return "";
+    var right = P.x >= Q.x ? [P, pb] : [Q, qb], left = right[0] === P ? [Q, qb] : [P, pb];
+    var c = Math.ceil((bd.x + 273 - right[0].x + 1.5) / 7.6 * 10) / 10;
+    return "。左の" + label(left[1]) + "の c を " + c + " 以上にする（そのぶん、さらに左の部品も c をずらす。いちばん左の部品の c と cols の合計は36まで）";
+  }
+
   /** 右の画面に紙を出して、道具の点検（はみ出し・入りきらない字・重なり）をかける。render.mjs と同じ見方。 */
   async function show(A, d) {
     A.loadDoc(d);
@@ -143,11 +165,14 @@
     A.measureAuto();
     var notes = A.inspect();
     A.doc.pages.forEach(function (pg, pi) {
+      var bd0 = pg.blocks.filter(function (b) { return b.type === "rect" && b.fill === "#2f5d50"; })[0];
       pg.blocks.forEach(function (b, i) {
         var o = d.pages[pi] && d.pages[pi].blocks[i];
         if (b.type === "text" && o && typeof o.h === "number") {
-          if (b.dir !== "v" && b.h > o.h + 0.5) notes.push(label(b) + "：わくより字が多く、高さが " + o.h.toFixed(1) + "→" + b.h.toFixed(1) + "mm に広がった。字をへらすか、rows（行の数）をふやす");
-          if (b.dir === "v" && b.w > o.w + 0.5) notes.push(label(b) + "：わくより字が多く、幅が広がった");
+          if (b.dir !== "v" && b.h > o.h + 0.5) notes.push(label(b) + (/発問と、予想される反応/.test(b.html || "")
+            ? "：黒板の下の欄の見出しが長く、2行になった。notes の見出し（1つめの文字列）を10字までにする"
+            : "：わくより字が多く、高さが " + o.h.toFixed(1) + "→" + b.h.toFixed(1) + "mm に広がった。字をへらすか、rows（行の数）をふやす"));
+          if (b.dir === "v" && b.w > o.w + 0.5) notes.push(label(b) + tateHint(b, o, bd0));
         }
       });
       // 黒板（緑の四角）からはみ出した部品。道具の点検は紙のはしまでしか見ないので、ここで見る
@@ -157,6 +182,7 @@
         var r = A.bbox(b), over = r.y + r.h - (bd.y + bd.h);
         if (over > 0.5) notes.push(label(b) + "：黒板の下から " + over.toFixed(1) + "mm はみ出している（r=" + ((r.y + r.h - 21) / 7.6).toFixed(1) + " まで使っている。黒板は r=9.9 まで）。r を上げるか、rows をへらす");
         else if (r.x + r.w > bd.x + bd.w + 0.5) notes.push(label(b) + "：黒板の右からはみ出している。w をへらす");
+        else if (r.x < bd.x - 0.5) notes.push(label(b) + "：黒板の左からはみ出している（c と cols を足すと36をこえる）。部品をへらすか、上下2段に分ける（上の段は top 8・len 32、下の段は top 44・len 30）");
       });
       var solid = function (b) { return ["masu", "text", "hissan", "shiki", "image"].indexOf(b.type) >= 0; };
       var bs = pg.blocks.map(function (b, i) { return { b: b, i: i, r: A.bbox(b) }; }).filter(function (x) { return solid(x.b); });
@@ -164,7 +190,7 @@
         var P = bs[a].r, Q = bs[z].r;
         var ww = Math.min(P.x + P.w, Q.x + Q.w) - Math.max(P.x, Q.x), hh = Math.min(P.y + P.h, Q.y + Q.h) - Math.max(P.y, Q.y);
         var pair = [bs[a].b.type, bs[z].b.type].sort().join("+");
-        if (ww > 1 && hh > 1 && pair !== "hissan+masu") notes.push(label(bs[a].b) + " と " + label(bs[z].b) + " が重なっている" + rowHint(P, Q, bs[a].b, bs[z].b));
+        if (ww > 1 && hh > 1 && pair !== "hissan+masu") notes.push(label(bs[a].b) + " と " + label(bs[z].b) + " が重なっている" + rowHint(P, Q, bs[a].b, bs[z].b) + colHint(P, Q, bs[a].b, bs[z].b, bd0));
       }
     });
     return notes;
@@ -178,11 +204,14 @@
     catch (e) { out.innerHTML = '<span class="bad">JSONとして読めませんでした。</span><br>' + esc(e.message) + "<br>Geminiに「JSONだけを、```json のかこみ1つで出しなおして」と頼んでください。"; return; }
     var A = await app();
     var drawn = +(F.unit && F.unit.masu) || 16;   // Geminiが組んだマスの数
-    if (!picked && UnitKit.MASU.indexOf(drawn) >= 0 && +sel.value !== drawn) { sel.value = drawn; info(); }
+    var tate = !!(F.unit && F.unit.dir === "v");
+    if (tate) { sel.value = 16; drawn = 16; }
+    else if (!picked && UnitKit.MASU.indexOf(drawn) >= 0 && +sel.value !== drawn) sel.value = drawn;
+    info(tate);
     made = UnitKit.build(F, { masu: +sel.value });
     var errs = made.errs.slice();
     // names は地名や人名のための欄。習っていない字の言いかえをせずに、ここへ入れて点検を通すことがあるので、先生に見せる
-    var nm = Array.from(new Set(Array.from(String((F.unit && F.unit.names) || "")).filter(function (c) { return c >= "一" && c <= "鿿"; })));
+    var nm = Array.from(new Set(Array.from(String((F.unit && F.unit.names) || "")).filter(function (c) { return c >= "一" && c <= "鿿" && UnitKit.gradeOf(c) > (+(F.unit && F.unit.grade) || 4); })));
     var nameNote = nm.length ? '<p class="note">固有名詞として点検を通した字：' + esc(nm.join("・")) + "。地名や人名でない字が入っていたら、Geminiに外してもらってください。</p>" : "";
     if (made.board) {
       try { made.boardDoc = A.buildKata(made.board, true).doc; made.boardDoc.title = made.board.name; }

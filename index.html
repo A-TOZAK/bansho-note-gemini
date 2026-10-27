@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Geminiで板書計画とノート｜School Stock</title>
-<meta name="description" content="授業の計画をGeminiに渡すと、板書計画・配るノート・ノートの記入例の3枚ができます。5mm方眼のほか、マス目の大きいノートにも合わせられます。">
+<meta name="description" content="授業の計画をGeminiに渡すと、板書計画・配るノート・ノートの記入例の3枚ができます。Geminiのスキルを取りこんで使います。国語の縦書きと、マス目の大きいノートにも合わせられます。">
 <link rel="canonical" href="https://a-tozak.github.io/bansho-note-gemini/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="School Stock">
@@ -63,15 +63,13 @@
   pre { margin:0; background:var(--wash); border:1px solid var(--line); padding:16px; font:12.5px/1.65 var(--font-mono); white-space:pre-wrap; word-break:break-all;
         max-height:420px; overflow:auto; }
   .notes { margin:16px 0 0; padding-left:1.2em; font-size:14.5px; }
-  .files { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:0 0 20px; padding:0; list-style:none; }
-  .files li { border:1px solid var(--line); padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
-  .files b { color:var(--black); }
-  .files span { font-size:14px; color:var(--sub); flex:1; }
-  .files .btn { min-height:40px; font-size:14px; }
-  .how { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-  .how h3 { font-size:16px; margin:0 0 8px; color:var(--black); }
-  .how ol { margin:0; padding-left:1.3em; font-size:14.5px; }
-  .how li { margin-bottom:4px; }
+  .howto { margin:0 0 20px; padding-left:1.4em; max-width:46em; }
+  .howto li { margin-bottom:8px; }
+  .flist { list-style:none; margin:0 0 16px; padding:0; border-top:1px solid var(--line); max-width:46em; }
+  .flist li { display:flex; flex-wrap:wrap; gap:4px 16px; padding:10px 0; border-bottom:1px solid var(--line); font-size:14.5px; }
+  .flist a { font-family:var(--font-mono); font-weight:700; min-width:15em; }
+  .flist span { color:var(--sub); }
+  .note-box { margin:0; padding:12px 16px; max-width:46em; font-size:14.5px; background:var(--wash); border-left:3px solid var(--accent); }
   .lead { margin:0 0 18px; max-width:44em; }
   .notes li { margin-bottom:6px; }
 
@@ -83,7 +81,7 @@
     .steps { grid-template-columns:1fr; }
     .steps li, .steps li + li { padding:16px 0; border-left:0; border-bottom:1px solid var(--line); }
     .shots { grid-template-columns:1fr; }
-    .files, .how { grid-template-columns:1fr; }
+    .flist a { min-width:0; }
     .btn { flex:1 1 100%; }
   }
 </style>
@@ -94,55 +92,81 @@
 <main>
   <div class="wrap hero">
     <h1 class="ja-phrase">Geminiで<br>板書計画とノート</h1>
-    <p class="ja-phrase">授業の計画をGeminiに渡すと、板書計画、配るノート、ノートの記入例の3枚ができます。ノートは視写をしない形で、題名・めあて・見出しだけが刷ってあります。ふだんは5mm方眼のノートで、マス目の大きいノート（1行12マスなど）にも合わせられます。</p>
+    <p class="ja-phrase">授業の計画をGeminiに渡すと、板書計画、配るノート、ノートの記入例の3枚ができます。ノートは視写をしない形で、題名・めあて・見出しだけが刷ってあります。5mm方眼のノートのほか、マス目の大きいノート（1行12マスなど）にも合わせられます。</p>
     <div class="btns">
-      <button class="btn primary" type="button" id="copy">プロンプトをコピーする</button>
-      <a class="btn" href="https://gemini.google.com/app" target="_blank" rel="noopener">Geminiをひらく</a>
+      <a class="btn primary" href="skill/bansho-note.zip" download="bansho-note.zip">スキルをダウンロード</a>
       <a class="btn" href="build/">組み立てページへ</a>
+      <a class="btn" href="https://gemini.google.com/app" target="_blank" rel="noopener">Geminiをひらく</a>
     </div>
-    <p class="for">横書きの教科（算数・理科・社会・総合）に使えます。国語の縦書きには、まだ使えません。</p>
+    <p class="for">算数・理科・社会・総合の横書きと、国語の縦書きに使えます。国語の縦書きは、点検を通るまでのやりとりが、横書きより多くなることがあります。</p>
   </div>
 
   <section>
     <div class="wrap">
       <h2>使い方</h2>
       <ol class="steps">
-        <li><span class="n">1</span><b>プロンプトをコピーする</b><span>いちばん下の「授業の計画」の欄を、本時の計画に書きかえます。指導案の本時の部分をそのまま貼ってかまいません。マス目の大きいノートに合わせるときは、「ノートのマス」に1行のマスの数を書きます。</span></li>
-        <li><span class="n">2</span><b>Geminiに貼る</b><span>Geminiが、紙の設計図（JSON）を1つ返します。右上のコピーのボタンでコピーします。</span></li>
-        <li><span class="n">3</span><b>組み立てページに貼る</b><span>3枚の紙ができ、点検もします。直すところが出たら、ボタンでコピーしてGeminiに貼りなおします。</span></li>
+        <li><span class="n">1</span><b>スキルを取りこむ</b><span>はじめの1回だけです。下の「スキルの取りこみ方」のとおりに、Geminiに取りこみます。</span></li>
+        <li><span class="n">2</span><b>授業の計画を貼る</b><span>Geminiの入力欄に「@bansho-note」と打って選び、本時の計画を貼って送ります。指導案の本時の部分をそのまま貼ってかまいません。Geminiが、紙の設計図（JSON）を返します。</span></li>
+        <li><span class="n">3</span><b>組み立てページに貼る</b><span>3枚の紙ができ、点検もします。直すところが出たら、ボタンでコピーして、Geminiの同じ会話に貼ります。</span></li>
       </ol>
     </div>
   </section>
 
-  <section id="chishiki">
+  <section id="skill">
     <div class="wrap">
-      <h2 class="ja-phrase">Geminiに知識のファイルを入れる</h2>
-      <p class="lead ja-phrase">プロンプトのほかに、約束を書いたファイルを3つ、Geminiに読ませると、まちがいが減ります。4年算数の1時間を12マスのノートで1回ずつ試したところ、点検を通るまでのやりとりが6回から3回に減りました。学年をこえる漢字のまちがいも、1回めから出ませんでした。</p>
-      <ul class="files">
-        <li><b>板書とノートの約束</b><span>行の数え方、マスの数ごとの行の数、試して分かったまちがいの例</span><a class="btn" href="knowledge/yakusoku.md" download="板書とノートの約束.md">ダウンロード</a></li>
-        <li><b>学年別漢字配当表</b><span>1年から6年までの1026字。組み立てページと同じ表です</span><a class="btn" href="knowledge/kanji.md" download="学年別漢字配当表.md">ダウンロード</a></li>
-        <li><b>見本の設計図</b><span>4年算数「1けたでわるわり算の筆算」第3時。点検を通ったもの</span><a class="btn" href="knowledge/mihon_sansu4_hissan.md" download="見本の設計図_4年算数_わり算の筆算.md">ダウンロード</a></li>
+      <h2 class="ja-phrase">スキルの取りこみ方</h2>
+      <p class="lead ja-phrase">スキルは、Geminiに仕事の進め方を覚えておいてもらうしくみです。プロンプトと、約束を書いたファイルがひとまとめになっているので、毎回コピーしたり添付したりしなくて済みます。Googleの案内では、スキルはこれまでのGemに代わるものです。</p>
+      <ol class="howto">
+        <li>上の「スキルをダウンロード」を押して、bansho-note.zip を保存し、開きます（展開します）。bansho-note というフォルダに、5つのファイルが入っています。</li>
+        <li>Geminiの<a href="https://gemini.google.com/customize/skills" target="_blank" rel="noopener">スキルの画面</a>を開きます。入力欄で「@」を打ち、「スキル」を選んでも開けます。</li>
+        <li>右上の「作成」から「アップロード」を選びます。</li>
+        <li>「スキルのアップロード」の画面で「ファイル」を押し、bansho-note フォルダの中の5つのファイルをまとめて選びます。</li>
+        <li>名前（bansho-note）、説明、カスタム指示が入ったことを確かめて、右上の「作成」を押します。スキルの一覧の「有効」に bansho-note が出れば、取りこみは終わりです。</li>
+      </ol>
+      <ul class="flist">
+        <li><a href="skill/bansho-note/SKILL.md" download>SKILL.md</a><span>スキルの本体です。プロンプトと同じ決まりが書いてあります</span></li>
+        <li><a href="skill/bansho-note/yakusoku.md" download>yakusoku.md</a><span>板書とノートの約束。行の数え方と、試して分かったまちがいの例</span></li>
+        <li><a href="skill/bansho-note/kanji.md" download>kanji.md</a><span>学年別漢字配当表（1026字）。組み立てページと同じ表です</span></li>
+        <li><a href="skill/bansho-note/mihon-sansu4-hissan.md" download>mihon-sansu4-hissan.md</a><span>点検を通った見本（4年算数、筆算のある時間）</span></li>
+        <li><a href="skill/bansho-note/mihon-kokugo4-gon.md" download>mihon-kokugo4-gon.md</a><span>点検を通った見本（4年国語、縦書き）</span></li>
       </ul>
-      <div class="how">
-        <div>
-          <h3>Gemを作るとき（おすすめ）</h3>
-          <ol>
-            <li><a href="https://gemini.google.com/gems/create" target="_blank" rel="noopener">新しいGemの画面</a>を開き、名前をつけます。</li>
-            <li>「カスタム指示」に、プロンプトの「授業の計画」より上を貼ります。</li>
-            <li>「知識」の＋から、3つのファイルを入れて保存します。</li>
-            <li>次からは、そのGemに授業の計画だけを貼ります。</li>
-          </ol>
-        </div>
-        <div>
-          <h3>Gemが使えないとき</h3>
-          <ol>
-            <li>Geminiの入力欄の＋から、3つのファイルを添付します。</li>
-            <li>同じ入力欄に、プロンプトを貼って送ります。</li>
-            <li>直すときは、同じ会話の中で続けます。</li>
-          </ol>
-        </div>
-      </div>
-      <p class="for">学校のアカウントでGemが使えるかどうかは、自治体や学校の設定で変わります。</p>
+      <p class="for">zipを開けないときは、この5つを1つずつダウンロードして、同じように選びます。スキルが新しくなったときは、古い bansho-note を一覧から消してから、取りこみなおします。</p>
+    </div>
+  </section>
+
+  <section id="notebook">
+    <div class="wrap">
+      <h2 class="ja-phrase">Gemini Notebookで、学習指導要領を確かめる</h2>
+      <p class="lead ja-phrase">学習指導要領の解説をGemini Notebookのノートブックに入れておくと、めあてやまとめの言葉を、解説の言葉で確かめられます。確かめた言葉を授業の計画に書き足してから、スキルに貼ります。</p>
+      <ol class="howto">
+        <li><a href="https://notebook.google.com/" target="_blank" rel="noopener">Gemini Notebook</a>で「新しいノートブック」を作ります。</li>
+        <li>「ソースを追加」の「ファイルをアップロード」から、学習指導要領解説のPDFを入れます。PDFは<a href="https://www.mext.go.jp/a_menu/shotou/new-cs/1387014.htm" target="_blank" rel="noopener">文部科学省の「小学校学習指導要領解説」のページ</a>にあります。使う教科の編と総則編を入れておきます。</li>
+        <li>ノートブックの中で、「4年算数のわり算の筆算は、学習指導要領のどの項目に当たりますか」のように聞きます。答えには、解説のどこから引いたかが示されます。</li>
+        <li>確かめた言葉を授業の計画に書き足して、スキル（@bansho-note）に貼ります。</li>
+      </ol>
+      <p class="note-box">スキルとノートブックは、別の会話で使います。同じ会話でノートブックをつないでスキルを使ったところ、Geminiが設計図ではなくスライドの資料を作ったり、点検で見つかることがふえたりしました。Googleの案内では、スキルの中にノートブックを入れる機能が、これから使えるようになります。</p>
+    </div>
+  </section>
+
+  <section id="school">
+    <div class="wrap">
+      <span id="chishiki"></span>
+      <h2 class="ja-phrase">学校のアカウントで、スキルがまだ使えないとき</h2>
+      <p class="lead ja-phrase">Googleの案内では、学校などのGoogle Workspaceでスキルが使えるようになるのは、個人のアカウントより後になります。入力欄で「@」を打っても「スキル」が出てこないときは、次の方法で同じことができます。</p>
+      <ol class="howto">
+        <li>下の4つのファイルをダウンロードします。</li>
+        <li>このページのいちばん下の「プロンプト」をコピーし、「授業の計画」の欄を本時の計画に書きかえます。</li>
+        <li>Geminiの入力欄の＋から「ファイルをアップロード」を選び、4つのファイルを添付します。同じ入力欄に、書きかえたプロンプトを貼って送ります。</li>
+        <li>直すときは、同じ会話の中で続けます。</li>
+      </ol>
+      <ul class="flist">
+        <li><a href="knowledge/yakusoku.md" download="板書とノートの約束.md">板書とノートの約束</a><span>行の数え方と、試して分かったまちがいの例</span></li>
+        <li><a href="knowledge/kanji.md" download="学年別漢字配当表.md">学年別漢字配当表</a><span>1年から6年までの1026字</span></li>
+        <li><a href="knowledge/mihon_sansu4_hissan.md" download="見本の設計図_4年算数_わり算の筆算.md">見本の設計図（4年算数）</a><span>横書き、筆算のある時間</span></li>
+        <li><a href="knowledge/mihon_kokugo4_gon.md" download="見本の設計図_4年国語_ごんぎつね.md">見本の設計図（4年国語）</a><span>縦書き</span></li>
+      </ul>
+      <p class="btns"><button class="btn primary" type="button" id="copy">プロンプトをコピーする</button></p>
+      <p class="for">学校のアカウントでGeminiが使えるかどうか、ファイルを添付できるかどうかは、自治体や学校の設定で変わります。学校の情報担当の先生に確かめてください。学校のアカウントでは、しばらくはGemも使えますが、Gemはスキルに置きかわっていくので、このページではすすめていません。</p>
     </div>
   </section>
 
@@ -165,6 +189,7 @@
       </div>
       <pre id="prompt">読みこんでいます…</pre>
       <ul class="notes">
+        <li>スキルを使うときは、このプロンプトをコピーしなくてかまいません。スキルの中に、同じ決まりが入っています。</li>
         <li>子どもの名前や、学校の外に出せない情報は入れないでください。</li>
         <li>前の時間の実験の数値などは、「前の時間の結果」の欄に書きます。書かないと、Geminiが数値を作ってしまうことがあります。</li>
         <li>できた紙は、<a href="https://a-tozak.github.io/School_Stock/tools/masume-print/">マス目プリントメーカー</a>で開いて、字を直したりPDFにしたりできます。</li>

@@ -90,7 +90,7 @@
       for (var u of units(t.s, this.v)) {
         if (pos > this.ncell) {
           line += 1; pos = start;
-          if ("、。，．」』）〕！？ー".indexOf(u[0]) >= 0) this.err(page + line + "行の頭に「" + u + "」が来た（" + t.s + "）。文を短くするか、折る所を変える");
+          if ("、。，．」』）〕！？ー".indexOf(u[0]) >= 0) this.err(page + line + "行の頭に「" + u + "」が来た（" + t.s + "）。cell " + start + " からは1行に" + (this.ncell - start + 1) + "マス入る。この文は" + width(t.s, this.v) + "マスなので、" + (this.ncell - start + 1) + "マス以内のところで put を2つに分ける");
         }
         if (line > this.nlines) { this.overflow(page, line, t.s); pos += 1; continue; }
         var cur = this.grid[page][line - 1][pos - 1];
@@ -390,5 +390,6 @@
     return JSON.parse(s.slice(a, b + 1));
   }
 
-  root.UnitKit = { build: build, parse: parse, setKanji: setKanji, units: units, MASU: MASU, masuSize: masuSize };
+  root.UnitKit = { build: build, parse: parse, setKanji: setKanji, units: units, MASU: MASU, masuSize: masuSize,
+    gradeOf: function (ch) { return GRADE[ch] || 9; } };
 })(typeof window !== "undefined" ? window : globalThis);
