@@ -273,12 +273,25 @@
         case "circle": n.circle(pg, op.line, op.cell[0], op.cell[1]); break;
         case "poly": n.poly(pg, op.points, color(op.color, INK), op.width, op.example ? "A" : null); break;
         case "seg": n.seg(pg, op.from[0], op.from[1], op.to[0], op.to[1], color(op.color, BLUE), op.width, op.dash); break;
-        case "hissan": n.hissan(pg, at(), op.cell || 1, op.expr, op.answer); n.used(pg, at() + 3); break;
+        case "hissan": n.hissan(pg, at(), op.cell || 1, op.expr, op.answer); n.used(pg, at() + hissanRows(op.expr) - 1); break;
       }
       var lim = n.v ? 23 : 16;
       [].concat(op.cell || []).forEach(function (c) { if (c < 1 || c > lim) n.err("cell は 1〜" + lim); });
     });
     n.where = "";
+  }
+
+  /** 筆算が縦に何行使うか。わり算は商の行とわられる数の行に、0でない商の数字ごとに2行（ひく数と、その差）。 */
+  function hissanRows(expr) {
+    var m = String(expr).replace(/\s/g, "").match(/^(\d+)([÷×+\-−＋])(\d+)$/);
+    if (!m) return 4;
+    if (m[2] === "÷") {
+      var q = String(Math.floor(+m[1] / +m[3])), steps = 0;
+      for (var i = 0; i < q.length; i++) if (q[i] !== "0") steps++;
+      return 2 + 2 * Math.max(steps, 1);
+    }
+    if (m[2] === "×") return m[3].length > 1 ? m[3].length + 3 : 3;
+    return 3;
   }
 
   /** 板書の型を、マス目プリントメーカーの App.buildKata に渡せる形にする（board.mjs と同じ下ごしらえ）。 */
