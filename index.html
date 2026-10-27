@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geminiで板書計画とノート｜School Stock</title>
+<meta name="description" content="授業の計画をGeminiに渡すと、板書計画・5mm方眼の配るノート・ノートの記入例の3枚ができます。プロンプトをコピーして、Geminiに貼るだけです。">
+<link rel="canonical" href="https://a-tozak.github.io/bansho-note-gemini/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="School Stock">
+<meta property="og:title" content="Geminiで板書計画とノート">
+<meta property="og:description" content="授業の計画をGeminiに渡すと、板書計画・5mm方眼の配るノート・ノートの記入例の3枚ができます。">
+<meta property="og:url" content="https://a-tozak.github.io/bansho-note-gemini/">
+<meta property="og:image" content="https://a-tozak.github.io/bansho-note-gemini/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Geminiで板書計画とノート","url":"https://a-tozak.github.io/bansho-note-gemini/","applicationCategory":"EducationalApplication","operatingSystem":"Web","inLanguage":"ja","isAccessibleForFree":true,"description":"授業の計画をGeminiに渡すと、板書計画・5mm方眼の配るノート・ノートの記入例の3枚ができます。","author":{"@type":"Person","name":"外﨑顯博"},"publisher":{"@type":"Organization","name":"School Stock"}}
+</script>
+<style>
+  :root {
+    --ink:#15181c; --black:#0e0f11; --paper:#ffffff; --wash:#f6f6f4; --line:#e6e6e3; --sub:#767b83; --accent:#2b5fd9;
+    --font-ja:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic Medium",sans-serif;
+    --font-mono:"SF Mono",Menlo,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-ja); font-size:16px; line-height:1.8; }
+  a { color:var(--accent); }
+  .wrap { max-width:960px; margin:0 auto; padding:0 16px; }
+  header { border-bottom:1px solid var(--line); }
+  header .wrap { display:flex; justify-content:space-between; align-items:center; height:52px; font-size:13px; }
+  header b { font-weight:700; letter-spacing:.02em; color:var(--black); }
+  header a { color:var(--sub); text-decoration:none; }
+  .ja-phrase { word-break:auto-phrase; text-wrap:pretty; }
+
+  .hero { padding-top:56px; padding-bottom:40px; }
+  .hero h1 { font-size:clamp(30px, 6vw, 48px); line-height:1.3; margin:0 0 16px; color:var(--black); letter-spacing:-.01em; }
+  .hero p { margin:0 0 28px; max-width:40em; color:var(--ink); }
+  .btns { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; min-height:48px; padding:0 22px; border:1px solid var(--black);
+         background:var(--paper); color:var(--black); font:inherit; font-size:15px; font-weight:700; text-decoration:none; cursor:pointer; border-radius:2px; }
+  .btn.primary { background:var(--black); color:#fff; }
+  .btn:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .for { margin-top:14px; font-size:13px; color:var(--sub); }
+
+  section { padding:44px 0; border-top:1px solid var(--line); }
+  h2 { font-size:22px; margin:0 0 20px; color:var(--black); }
+  .steps { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(3, 1fr); gap:0; border-top:2px solid var(--black); }
+  .steps li { padding:18px 18px 18px 0; }
+  .steps li + li { padding-left:18px; border-left:1px solid var(--line); }
+  .steps .n { font-family:Georgia, serif; font-size:30px; line-height:1; color:var(--accent); display:block; margin-bottom:10px; }
+  .steps b { display:block; margin-bottom:4px; color:var(--black); }
+  .steps span { font-size:14.5px; }
+
+  .shots { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  figure { margin:0; }
+  figure img { width:100%; height:auto; display:block; border:1px solid var(--line); background:#fff; }
+  figcaption { font-size:13.5px; color:var(--sub); margin-top:8px; }
+  .shots figure:first-child { grid-column:1 / -1; }
+
+  .prompt-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .prompt-head h2 { margin:0; }
+  pre { margin:0; background:var(--wash); border:1px solid var(--line); padding:16px; font:12.5px/1.65 var(--font-mono); white-space:pre-wrap; word-break:break-all;
+        max-height:420px; overflow:auto; }
+  .notes { margin:16px 0 0; padding-left:1.2em; font-size:14.5px; }
+  .notes li { margin-bottom:6px; }
+
+  footer { border-top:1px solid var(--line); padding:28px 0 40px; font-size:13px; color:var(--sub); }
+  footer a { color:var(--sub); }
+
+  @media (max-width:720px) {
+    .hero { padding-top:36px; padding-bottom:28px; }
+    .steps { grid-template-columns:1fr; }
+    .steps li, .steps li + li { padding:16px 0; border-left:0; border-bottom:1px solid var(--line); }
+    .shots { grid-template-columns:1fr; }
+    .btn { flex:1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<header><div class="wrap"><b>School Stock</b><a href="https://a-tozak.github.io/School_Stock/">棚へ</a></div></header>
+
+<main>
+  <div class="wrap hero">
+    <h1 class="ja-phrase">Geminiで<br>板書計画とノート</h1>
+    <p class="ja-phrase">授業の計画をGeminiに渡すと、板書計画、5mm方眼の配るノート、ノートの記入例の3枚ができます。ノートは視写をしない形で、題名・めあて・見出しだけが刷ってあります。</p>
+    <div class="btns">
+      <button class="btn primary" type="button" id="copy">プロンプトをコピーする</button>
+      <a class="btn" href="https://gemini.google.com/app" target="_blank" rel="noopener">Geminiをひらく</a>
+      <a class="btn" href="build/">組み立てページへ</a>
+    </div>
+    <p class="for">横書きの教科（算数・理科・社会・総合）に使えます。国語の縦書きには、まだ使えません。</p>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <h2>使い方</h2>
+      <ol class="steps">
+        <li><span class="n">1</span><b>プロンプトをコピーする</b><span>いちばん下の「授業の計画」の欄を、本時の計画に書きかえます。指導案の本時の部分をそのまま貼ってかまいません。</span></li>
+        <li><span class="n">2</span><b>Geminiに貼る</b><span>Geminiが、紙の設計図（JSON）を1つ返します。右上のコピーのボタンでコピーします。</span></li>
+        <li><span class="n">3</span><b>組み立てページに貼る</b><span>3枚の紙ができ、点検もします。直すところが出たら、ボタンでコピーしてGeminiに貼りなおします。</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2 class="ja-phrase">できあがり（4年理科「とじこめた空気と水」第2時）</h2>
+      <div class="shots">
+        <figure><img src="assets/sample_board.jpg" width="1400" height="991" alt="板書計画。緑の黒板を3つに分け、問題・予想・調べ方を書き、下に発問と予想される反応の欄が3つある" loading="lazy"><figcaption>板書計画（A4よこ）</figcaption></figure>
+        <figure><img src="assets/sample_note.jpg" width="1400" height="988" alt="配るノート。5mm方眼の見開きに、題名・問題・見出し・表のわくだけが刷ってある" loading="lazy"><figcaption>配るノート（B4よこ。B5ノートの見開き）</figcaption></figure>
+        <figure><img src="assets/sample_example.jpg" width="1400" height="988" alt="ノートの記入例。配るノートに、子どもの答えが青い字で入っている" loading="lazy"><figcaption>ノートの記入例（子どもの答えが青で入る）</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="prompt-head">
+        <h2>プロンプト</h2>
+        <button class="btn primary" type="button" id="copy2">コピーする</button>
+      </div>
+      <pre id="prompt">読みこんでいます…</pre>
+      <ul class="notes">
+        <li>子どもの名前や、学校の外に出せない情報は入れないでください。</li>
+        <li>前の時間の実験の数値などは、「前の時間の結果」の欄に書きます。書かないと、Geminiが数値を作ってしまうことがあります。</li>
+        <li>できた紙は、<a href="https://a-tozak.github.io/School_Stock/tools/masume-print/">マス目プリントメーカー</a>で開いて、字を直したりPDFにしたりできます。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">© School Stock　作成：外﨑顯博　／　<a href="https://a-tozak.github.io/School_Stock/about/terms.html">利用規約</a>　／　<a href="https://github.com/A-TOZAK/bansho-note-gemini">GitHub</a></div></footer>
+
+<script>
+(function () {
+  "use strict";
+  var pre = document.getElementById("prompt"), text = "";
+  fetch("prompt.md").then(function (r) { return r.text(); }).then(function (t) { text = t; pre.textContent = t; })
+    .catch(function () { pre.textContent = "プロンプトを読みこめませんでした。GitHub の prompt.md を開いてください。"; });
+  function copy(btn) {
+    if (!text) return;
+    var done = function () { var o = btn.textContent; btn.textContent = "コピーしました"; setTimeout(function () { btn.textContent = o; }, 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+    function fallback() {
+      var r = document.createRange(); r.selectNodeContents(pre);
+      var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      try { document.execCommand("copy"); done(); } catch (e) { /* 選んだままにしておく */ }
+    }
+  }
+  document.getElementById("copy").onclick = function () { copy(this); };
+  document.getElementById("copy2").onclick = function () { copy(this); };
+})();
+</script>
+</body>
+</html>

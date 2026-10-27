@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>組み立てページ｜Geminiで板書計画とノート</title>
+<meta name="description" content="Geminiが書いたJSONを貼ると、板書計画・配るノート・ノートの記入例の3枚を組み立てて点検します。">
+<link rel="canonical" href="https://a-tozak.github.io/bansho-note-gemini/build/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="組み立てページ｜Geminiで板書計画とノート">
+<meta property="og:description" content="Geminiが書いたJSONを貼ると、板書計画・配るノート・ノートの記入例の3枚を組み立てて点検します。">
+<meta property="og:url" content="https://a-tozak.github.io/bansho-note-gemini/build/">
+<meta property="og:image" content="https://a-tozak.github.io/bansho-note-gemini/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root { --ink:#1b1b1b; --sub:#5f6368; --line:#d9dce0; --bg:#f6f7f8; --red:#c5221f; --ok:#1e7d3a; --blue:#2b5bb8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Hiragino Sans", "BIZ UDPGothic", sans-serif; color:var(--ink); background:var(--bg); height:100vh; display:flex; }
+  #side { width:380px; flex:none; display:flex; flex-direction:column; gap:10px; padding:14px; border-right:1px solid var(--line); background:#fff; overflow:auto; }
+  h1 { font-size:16px; margin:0; }
+  p.note { font-size:12.5px; color:var(--sub); margin:0; line-height:1.6; }
+  textarea { width:100%; height:220px; font:12px/1.5 ui-monospace, Menlo, monospace; border:1px solid var(--line); border-radius:6px; padding:8px; resize:vertical; }
+  button { font:inherit; font-size:13.5px; padding:7px 12px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer; }
+  button.primary { background:var(--ink); color:#fff; border-color:var(--ink); }
+  button[aria-pressed="true"] { background:#e8eefb; border-color:var(--blue); color:var(--blue); font-weight:bold; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; }
+  #result { font-size:13px; line-height:1.6; }
+  #result .ok { color:var(--ok); font-weight:bold; }
+  #result .bad { color:var(--red); font-weight:bold; }
+  #result ul { margin:4px 0 0; padding-left:18px; }
+  #result li { margin-bottom:2px; }
+  a { color:var(--blue); }
+  #view { flex:1; display:flex; flex-direction:column; min-width:0; }
+  #frame { flex:1; border:0; width:100%; background:#fff; }
+  .label { font-size:12px; color:var(--sub); margin:0 0 4px; }
+</style>
+</head>
+<body>
+<div id="side">
+  <h1>組み立てページ</h1>
+  <p class="note"><a href="../">← プロンプトのページへ</a></p>
+  <p class="note">Geminiが書いた1時間分の紙面ファイル（JSON）を貼りつけて「組み立てる」を押します。前後の説明文や ```json のかこみがついていても読めます。</p>
+  <textarea id="src" spellcheck="false" placeholder='{"unit": {...}, "ji": 2, "note": [...], "board": {...}}'></textarea>
+  <div class="row">
+    <button id="go" class="primary" type="button">組み立てる</button>
+    <button id="sample" type="button">見本を入れる</button>
+  </div>
+  <div id="result"></div>
+  <div id="tabs" hidden>
+    <p class="label">見る紙</p>
+    <div class="row">
+      <button type="button" data-k="board">板書計画</button>
+      <button type="button" data-k="note">配るノート</button>
+      <button type="button" data-k="example">記入例</button>
+    </div>
+    <p class="label" style="margin-top:10px">続きから直せるファイルで保存</p>
+    <div class="row">
+      <button type="button" data-save="board">板書</button>
+      <button type="button" data-save="note">ノート</button>
+      <button type="button" data-save="example">記入例</button>
+    </div>
+    <p class="note" style="margin-top:8px">PDFにするときは、右の画面の上にある書き出しのボタンを使います。字の直しも右の画面でできます。保存したファイルは、<a href="https://a-tozak.github.io/School_Stock/tools/masume-print/" target="_blank" rel="noopener">マス目プリントメーカー</a>の「開く」で開くと、続きから直せます。</p>
+  </div>
+</div>
+<div id="view"><iframe id="frame" data-src="../../School_Stock/tools/masume-print/index.html?t=blank" title="マス目プリントメーカー"></iframe></div>
+<script src="kit.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (s) { return document.querySelector(s); };
+  var frame = $("#frame"), made = null, ready = null;
+
+  // 右の画面のマス目プリントメーカーは、ふだんの道具と同じ自動保存を使う。ここで紙を出すと、
+  // 作りかけのプリントの自動保存が上書きされるので、開く前に写しを取り、紙を出したあとと、このページを閉じるときに戻す
+  var KEY = "masume-print.v1", kept;
+  try { kept = localStorage.getItem(KEY); } catch (e) { kept = undefined; }
+  function giveBack() {
+    if (kept === undefined) return;
+    try { if (kept === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, kept); } catch (e) { /* 戻せなくても組み立ては続ける */ }
+  }
+  window.addEventListener("pagehide", giveBack);
+  frame.src = frame.dataset.src;
+
+  // マス目プリントメーカー（右の画面）が動き出すのを待つ
+  function app() {
+    if (ready) return ready;
+    ready = new Promise(function (ok) {
+      (function wait() {
+        var w = frame.contentWindow;
+        if (w && w.App && w.App.loadDoc && w.App.buildKata) ok(w.App); else setTimeout(wait, 100);
+      })();
+    });
+    return ready;
+  }
+
+  fetch("kanji_grade.json").then(function (r) { return r.json(); }).then(function (j) { UnitKit.setKanji(j.grades); });
+
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+
+  /** 点検の知らせで、どの部品かを Gemini が見分けられるように、中の字の頭を出す。 */
+  function label(b) {
+    var s = (b.html || b.text || b.expr || "").replace(/<br\s*\/?>/g, "／").replace(/<[^>]+>/g, "").replace(/\n/g, "／").trim();
+    if (b.type === "masu") return "ノートのマス目";
+    return s ? "「" + s.slice(0, 16) + (s.length > 16 ? "…" : "") + "」" : "（字のない" + ({ rect: "四角", line: "線" }[b.type] || "部品") + "）";
+  }
+
+  /** 横書きの黒板で重なったとき、下の部品の r をいくつにすればよいかを言う（黒板の上はし18mm＋3mm、1行7.6mm）。 */
+  function rowHint(P, Q, pb, qb) {
+    if (!pb.onBoard || !qb.onBoard || pb.dir === "v" || qb.dir === "v") return "";
+    var up = P.y <= Q.y ? [P, pb] : [Q, qb], low = up[0] === P ? [Q, qb] : [P, pb];
+    var toR = function (y) { return (y - 21) / 7.6; };
+    var need = Math.ceil(toR(up[0].y + up[0].h) * 2) / 2;
+    return "。上の" + label(up[1]) + "は r=" + toR(up[0].y + up[0].h).toFixed(1) + " まで使っている。下の" + label(low[1]) + "の r を " + need + " 以上にするか、上の部品を小さくする";
+  }
+
+  /** 右の画面に紙を出して、道具の点検（はみ出し・入りきらない字・重なり）をかける。render.mjs と同じ見方。 */
+  async function show(A, d) {
+    A.loadDoc(d);
+    var w = frame.contentWindow;
+    if (w.document.fonts) await w.document.fonts.ready;
+    A.measureAuto();
+    var notes = A.inspect();
+    A.doc.pages.forEach(function (pg, pi) {
+      pg.blocks.forEach(function (b, i) {
+        var o = d.pages[pi] && d.pages[pi].blocks[i];
+        if (b.type === "text" && o && typeof o.h === "number") {
+          if (b.dir !== "v" && b.h > o.h + 0.5) notes.push(label(b) + "：わくより字が多く、高さが " + o.h.toFixed(1) + "→" + b.h.toFixed(1) + "mm に広がった。字をへらすか、rows（行の数）をふやす");
+          if (b.dir === "v" && b.w > o.w + 0.5) notes.push(label(b) + "：わくより字が多く、幅が広がった");
+        }
+      });
+      // 黒板（緑の四角）からはみ出した部品。道具の点検は紙のはしまでしか見ないので、ここで見る
+      var bd = pg.blocks.filter(function (b) { return b.type === "rect" && b.fill === "#2f5d50"; })[0];
+      if (bd) pg.blocks.forEach(function (b) {
+        if (!b.onBoard) return;
+        var r = A.bbox(b), over = r.y + r.h - (bd.y + bd.h);
+        if (over > 0.5) notes.push(label(b) + "：黒板の下から " + over.toFixed(1) + "mm はみ出している（r=" + ((r.y + r.h - 21) / 7.6).toFixed(1) + " まで使っている。黒板は r=9.9 まで）。r を上げるか、rows をへらす");
+        else if (r.x + r.w > bd.x + bd.w + 0.5) notes.push(label(b) + "：黒板の右からはみ出している。w をへらす");
+      });
+      var solid = function (b) { return ["masu", "text", "hissan", "shiki", "image"].indexOf(b.type) >= 0; };
+      var bs = pg.blocks.map(function (b, i) { return { b: b, i: i, r: A.bbox(b) }; }).filter(function (x) { return solid(x.b); });
+      for (var a = 0; a < bs.length; a++) for (var z = a + 1; z < bs.length; z++) {
+        var P = bs[a].r, Q = bs[z].r;
+        var ww = Math.min(P.x + P.w, Q.x + Q.w) - Math.max(P.x, Q.x), hh = Math.min(P.y + P.h, Q.y + Q.h) - Math.max(P.y, Q.y);
+        var pair = [bs[a].b.type, bs[z].b.type].sort().join("+");
+        if (ww > 1 && hh > 1 && pair !== "hissan+masu") notes.push(label(bs[a].b) + " と " + label(bs[z].b) + " が重なっている" + rowHint(P, Q, bs[a].b, bs[z].b));
+      }
+    });
+    return notes;
+  }
+
+  async function run() {
+    var out = $("#result");
+    out.innerHTML = "組み立てています…";
+    var F;
+    try { F = UnitKit.parse($("#src").value); }
+    catch (e) { out.innerHTML = '<span class="bad">JSONとして読めませんでした。</span><br>' + esc(e.message) + "<br>Geminiに「JSONだけを、```json のかこみ1つで出しなおして」と頼んでください。"; return; }
+    var A = await app();
+    made = UnitKit.build(F);
+    var errs = made.errs.slice();
+    if (made.board) {
+      try { made.boardDoc = A.buildKata(made.board, true).doc; made.boardDoc.title = made.board.name; }
+      catch (e) { errs.push("板書：組み立てられなかった（" + e.message + "）"); }
+    }
+    // 3枚とも道具の点検にかける。最後に板書を出しておく
+    var order = [["note", "ノート"], ["example", "記入例"], ["board", "板書"]];
+    for (var i = 0; i < order.length; i++) {
+      var d = docOf(order[i][0]);
+      if (!d) continue;
+      (await show(A, d)).forEach(function (n) { errs.push(order[i][1] + "の紙：" + n); });
+    }
+    errs = Array.from(new Set(errs));
+    $("#tabs").hidden = false;
+    pick(made.boardDoc ? "board" : "example");
+    if (!errs.length) { out.innerHTML = '<span class="ok">✅ 点検を通りました。</span>（はみ出し・重なり・入りきらない字・学年をこえる漢字）'; return; }
+    var fix = "次の点を直して、紙面ファイルのJSONを全部出しなおしてください。\n" + errs.map(function (e) { return "・" + e; }).join("\n");
+    out.innerHTML = '<span class="bad">⚠ 点検で ' + errs.length + " 件見つかりました。</span><ul>" + errs.map(function (e) { return "<li>" + esc(e) + "</li>"; }).join("") +
+      '</ul><button type="button" id="copyfix">直してほしいことをコピー（Geminiに貼る）</button>';
+    $("#copyfix").onclick = function () {
+      navigator.clipboard.writeText(fix).then(function () { $("#copyfix").textContent = "コピーしました"; });
+    };
+  }
+
+  function docOf(k) { return !made ? null : k === "board" ? made.boardDoc : made[k]; }
+  async function pick(k) {
+    var d = docOf(k);
+    if (!d) return;
+    (await app()).loadDoc(d);
+    setTimeout(giveBack, 700);
+    document.querySelectorAll("[data-k]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.k === k ? "true" : "false"); });
+  }
+  function save(k) {
+    var d = docOf(k);
+    if (!d) return;
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: "application/json" }));
+    a.download = (d.title || "紙面") + ".masume.json";
+    a.click();
+  }
+
+  $("#go").onclick = run;
+  $("#sample").onclick = function () {
+    fetch("sample.json").then(function (r) { return r.text(); }).then(function (t) { $("#src").value = t; });
+  };
+  document.querySelectorAll("[data-k]").forEach(function (b) { b.onclick = function () { pick(b.dataset.k); }; });
+  document.querySelectorAll("[data-save]").forEach(function (b) { b.onclick = function () { save(b.dataset.save); }; });
+  window.__run = run;   // 確かめ用
+  window.__docs = function () { return made && { board: made.boardDoc, note: made.note, example: made.example }; };
+})();
+</script>
+</body>
+</html>
