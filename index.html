@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Geminiで板書計画とノート｜School Stock</title>
-<meta name="description" content="授業の計画をGeminiに渡すと、板書計画・配るノート・ノートの記入例の3枚ができます。Geminiのスキルを取りこんで使います。国語の縦書きと、マス目の大きいノートにも合わせられます。">
+<title>ノートの見本｜Geminiで作る｜School Stock</title>
+<meta name="description" content="手が止まる子と、休んだ子に渡すノートの見本を、Geminiで作ります。本時の計画を貼ると、配るノート、ノートの記入例、板書計画の3枚ができます。国語の縦書きと、マス目の大きいノートにも合わせられます。">
 <link rel="canonical" href="https://a-tozak.github.io/bansho-note-gemini/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="School Stock">
-<meta property="og:title" content="Geminiで板書計画とノート">
-<meta property="og:description" content="授業の計画をGeminiに渡すと、板書計画・5mm方眼の配るノート・ノートの記入例の3枚ができます。">
+<meta property="og:title" content="ノートの見本｜手が止まる子と、休んだ子に渡す紙">
+<meta property="og:description" content="本時の計画をGeminiに貼ると、配るノート、ノートの記入例、板書計画の3枚ができます。">
 <meta property="og:url" content="https://a-tozak.github.io/bansho-note-gemini/">
 <meta property="og:image" content="https://a-tozak.github.io/bansho-note-gemini/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebApplication","name":"Geminiで板書計画とノート","url":"https://a-tozak.github.io/bansho-note-gemini/","applicationCategory":"EducationalApplication","operatingSystem":"Web","inLanguage":"ja","isAccessibleForFree":true,"description":"授業の計画をGeminiに渡すと、板書計画・5mm方眼の配るノート・ノートの記入例の3枚ができます。","author":{"@type":"Person","name":"外﨑顯博"},"publisher":{"@type":"Organization","name":"School Stock"}}
+{"@context":"https://schema.org","@type":"WebApplication","name":"ノートの見本","url":"https://a-tozak.github.io/bansho-note-gemini/","applicationCategory":"EducationalApplication","operatingSystem":"Web","inLanguage":"ja","isAccessibleForFree":true,"description":"手が止まる子と、休んだ子に渡すノートの見本を、Geminiで作ります。配るノート、ノートの記入例、板書計画の3枚ができます。","author":{"@type":"Person","name":"外﨑顯博"},"publisher":{"@type":"Organization","name":"School Stock"}}
 </script>
 <style>
   :root {
@@ -36,6 +36,15 @@
   .hero { padding-top:56px; padding-bottom:40px; }
   .hero h1 { font-size:clamp(30px, 6vw, 48px); line-height:1.3; margin:0 0 16px; color:var(--black); letter-spacing:-.01em; }
   .hero p { margin:0 0 28px; max-width:40em; color:var(--ink); }
+  .hero .sub { margin:0 0 24px; font-size:clamp(18px, 3vw, 22px); font-weight:700; color:var(--accent); }
+  .hero-img { margin:0 0 24px; }
+  table.dare { width:100%; border-collapse:collapse; font-size:15px; margin:0 0 28px; border-top:2px solid var(--black); }
+  .dare th, .dare td { text-align:left; vertical-align:top; padding:12px 10px 12px 0; border-bottom:1px solid var(--line); }
+  .dare th { font-size:13px; color:var(--sub); font-weight:700; }
+  .dare td:first-child { font-weight:700; color:var(--black); width:36%; }
+  .omoi { max-width:44em; padding:20px 22px; background:var(--wash); }
+  .omoi p { margin:0 0 .9em; }
+  .omoi .sign { margin:0; text-align:right; font-size:14px; color:var(--sub); }
   .btns { display:flex; gap:10px; flex-wrap:wrap; }
   .btn { display:inline-flex; align-items:center; justify-content:center; min-height:48px; padding:0 22px; border:1px solid var(--black);
          background:var(--paper); color:var(--black); font:inherit; font-size:15px; font-weight:700; text-decoration:none; cursor:pointer; border-radius:2px; }
@@ -81,6 +90,7 @@
     .steps { grid-template-columns:1fr; }
     .steps li, .steps li + li { padding:16px 0; border-left:0; border-bottom:1px solid var(--line); }
     .shots { grid-template-columns:1fr; }
+    .dare td:first-child { width:auto; }
     .flist a { min-width:0; }
     .btn { flex:1 1 100%; }
   }
@@ -91,8 +101,10 @@
 
 <main>
   <div class="wrap hero">
-    <h1 class="ja-phrase">Geminiで<br>板書計画とノート</h1>
-    <p class="ja-phrase">授業の計画をGeminiに渡すと、板書計画、配るノート、ノートの記入例の3枚ができます。ノートは視写をしない形で、題名・めあて・見出しだけが刷ってあります。5mm方眼のノートのほか、マス目の大きいノート（1行12マスなど）にも合わせられます。</p>
+    <h1 class="ja-phrase">ノートの見本</h1>
+    <p class="sub ja-phrase">手が止まる子と、休んだ子に渡す紙を作ります</p>
+    <figure class="hero-img"><img src="assets/sansu_example.jpg" width="1400" height="988" alt="ノートの記入例。4年算数のわり算の筆算で、5mm方眼の見開きに、筆算と答えのたしかめが青い字で1マスに1字ずつ入っている"><figcaption>ノートの記入例（4年算数「1けたでわるわり算の筆算」第3時。B4で刷ります）</figcaption></figure>
+    <p class="ja-phrase">本時の計画をGeminiに貼ると、配るノートとノートの記入例ができます。板書計画も一緒にできます。<br>B4で刷って、その子に渡せます。</p>
     <div class="btns">
       <a class="btn primary" href="skill/bansho-note.zip" download="bansho-note.zip">スキルをダウンロード</a>
       <a class="btn" href="build/">組み立てページへ</a>
@@ -101,13 +113,33 @@
     <p class="for">算数・理科・社会・総合の横書きと、国語の縦書きに使えます。国語の縦書きは、点検を通るまでのやりとりが、横書きより多くなることがあります。</p>
   </div>
 
+  <section id="dare">
+    <div class="wrap">
+      <h2 class="ja-phrase">こんな子に渡します</h2>
+      <p class="lead ja-phrase">毎時間使うものではありません。この子に渡したい、と思う時間に使います。</p>
+      <table class="dare">
+        <tr><th>その子</th><th>渡すもの</th><th>いつ渡すか</th></tr>
+        <tr><td>書き方が分からず、手が止まる子</td><td>配るノートと記入例</td><td>前の日に刷り、朝、机に置きます</td></tr>
+        <tr><td>見通しが持てず、不安になる子</td><td>板書計画</td><td>授業の前に渡しておきます</td></tr>
+        <tr><td>休んで戻ってきた子</td><td>配るノートと記入例</td><td>戻ってきたその日に渡します</td></tr>
+        <tr><td>学校に来られていない子</td><td>板書計画と配るノート</td><td>家に届けるか、Classroomで配ります</td></tr>
+        <tr><td>マス目の大きいノートを使う子</td><td>1行12マスや10マスの記入例</td><td>単元の始まりから使います</td></tr>
+      </table>
+      <div class="omoi">
+        <p>担任をしていると、普通に授業をしていくだけでは、なかなかついていけない子がいます。たぶん、どの学級にもいると思います。本当は、一人一人にできることを全部してあげたいのですが、毎時間その子のために見本を用意するのは、無理でした。完璧にはできなくても、少しは支えられるのではないかと思って、ふだんのGeminiで作れるようにしました。</p>
+        <p>教科の専門家ではない私が、調べながら作ったものです。おかしなところが出たら、手で直して使ってください。</p>
+        <p class="sign">外﨑顯博（小学校教員）</p>
+      </div>
+    </div>
+  </section>
+
   <section>
     <div class="wrap">
       <h2>使い方</h2>
       <ol class="steps">
         <li><span class="n">1</span><b>スキルを取りこむ</b><span>はじめの1回だけです。下の「スキルの取りこみ方」のとおりに、Geminiに取りこみます。</span></li>
         <li><span class="n">2</span><b>授業の計画を貼る</b><span>Geminiの入力欄に「@bansho-note」と打って選び、本時の計画を貼って送ります。指導案の本時の部分をそのまま貼ってかまいません。Geminiが、紙の設計図（JSON）を返します。</span></li>
-        <li><span class="n">3</span><b>組み立てページに貼る</b><span>3枚の紙ができ、点検もします。直すところが出たら、ボタンでコピーして、Geminiの同じ会話に貼ります。</span></li>
+        <li><span class="n">3</span><b>組み立てページに貼る</b><span>3枚の紙ができ、点検もします。直すところが出たときだけ、ボタンでコピーして、Geminiの同じ会話に貼ります。できた紙はB4で刷ります。</span></li>
       </ol>
     </div>
   </section>
